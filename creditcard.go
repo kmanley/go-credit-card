@@ -44,19 +44,23 @@ func (c *Card) Wipe() {
 	c.Cvv, c.Number, c.Month, c.Year = "0000", "0000000000000000", "01", "1970"
 }
 
+func (c *Card) ExpiresMonth() (int, error) {
+	return strconv.Atoi(c.Month)
+}
+
+func (c *Card) ExpiresYear() (int, error) {
+	if len(c.Year) < 3 {
+		return strconv.Atoi(strconv.Itoa(time.Now().UTC().Year())[:2] + c.Year)
+	}
+	return strconv.Atoi(c.Year)
+}
+
 // Validate returns nil or an error describing why the credit card didn't validate
 // this method checks for expiration date, CCV/CVV and the credit card's numbers.
 // For allowing test cards to go through, simply pass true.(bool) as the first argument
 func (c *Card) Validate(allowTestNumbers ...bool) error {
-	var year, month int
-
-	if len(c.Year) < 3 {
-		year, _ = strconv.Atoi(strconv.Itoa(time.Now().UTC().Year())[:2] + c.Year)
-	} else {
-		year, _ = strconv.Atoi(c.Year)
-	}
-
-	month, _ = strconv.Atoi(c.Month)
+	year, _ := c.ExpiresYear()
+	month, _ := c.ExpiresMonth()
 
 	if month < 1 || 12 < month {
 		return errors.New("Invalid month.")
