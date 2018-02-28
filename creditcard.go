@@ -55,10 +55,7 @@ func (c *Card) ExpiresYear() (int, error) {
 	return strconv.Atoi(c.Year)
 }
 
-// Validate returns nil or an error describing why the credit card didn't validate
-// this method checks for expiration date, CCV/CVV and the credit card's numbers.
-// For allowing test cards to go through, simply pass true.(bool) as the first argument
-func (c *Card) Validate(allowTestNumbers ...bool) error {
+func (c *Card) ValidateExpiry() error {
 	year, _ := c.ExpiresYear()
 	month, _ := c.ExpiresMonth()
 
@@ -74,10 +71,18 @@ func (c *Card) Validate(allowTestNumbers ...bool) error {
 		return errors.New("Credit card has expired")
 	}
 
+	return nil
+}
+
+func (c *Card) ValidateCVV() error {
 	if len(c.Cvv) < 3 || len(c.Cvv) > 4 {
 		return errors.New("Invalid CVV")
 	}
 
+	return nil
+}
+
+func (c *Card) ValidateNumber(allowTestNumbers ...bool) error {
 	if len(c.Number) < 13 {
 		return errors.New("Invalid credit card number")
 	}
@@ -105,13 +110,30 @@ func (c *Card) Validate(allowTestNumbers ...bool) error {
 		return errors.New("Test numbers are not allowed")
 	}
 
-	valid := c.ValidateNumber()
+	valid := c.LuhnCheck()
 
 	if !valid {
 		return errors.New("Invalid credit card number")
 	}
 
 	return nil
+}
+
+// Validate returns nil or an error describing why the credit card didn't validate
+// this method checks for expiration date, CCV/CVV and the credit card's numbers.
+// For allowing test cards to go through, simply pass true.(bool) as the first argument
+func (c *Card) Validate(allowTestNumbers ...bool) error {
+	err := c.ValidateNumber(allowTestNumbers...)
+	if err != nil {
+		return err
+	}
+
+	err = c.ValidateExpiry()
+	if err != nil {
+		return err
+	}
+
+	return c.ValidateCVV()
 }
 
 // Method returns an error from MethodValidate() or returns the
@@ -178,7 +200,7 @@ func (c *Card) MethodValidate() (Company, error) {
 // http://en.wikipedia.org/wiki/Luhn_algorithm
 
 // ValidateNumber will check the credit card's number against the Luhn algorithm
-func (c *Card) ValidateNumber() bool {
+func (c *Card) LuhnCheck() bool {
 	var sum int
 	var alternate bool
 
